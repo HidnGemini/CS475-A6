@@ -12,8 +12,17 @@
  * @return a pointer to a new thread-safe hashmap.
  */
 ts_hashmap_t *initmap(int capacity) {
-  // TODO
-  return NULL;
+  // malloc ts_hashmap_t structure memory
+  ts_hashmap_t *map = (ts_hashmap_t*) malloc(sizeof(ts_hashmap_t));
+
+  // set initial values
+  map->capacity = capacity;
+  map->size = 0;
+  map->numOps = 0;
+
+  map->table = (ts_entry_t**) malloc(capacity * sizeof(ts_entry_t*));
+
+  return map;
 }
 
 /**
@@ -23,7 +32,28 @@ ts_hashmap_t *initmap(int capacity) {
  * @return the value associated with the given key, or INT_MAX if key not found
  */
 int get(ts_hashmap_t *map, int key) {
-  // TODO
+  map->numOps++;
+  int index = key % (map->capacity);
+
+  ts_entry_t *entry = map->table[index];
+
+  if (map->table[index] == NULL) {
+    return INT_MAX;
+  }
+
+  // check all but the last entry
+  do {
+    if (entry->key == key) {
+      return entry->value;
+    }
+    entry = entry->next;
+  } while (entry->next != NULL);
+
+  // check last entry
+  if (entry->key == key) {
+    return entry->value;
+  }
+
   return INT_MAX;
 }
 
@@ -35,8 +65,53 @@ int get(ts_hashmap_t *map, int key) {
  * @return old associated value, or INT_MAX if the key was new
  */
 int put(ts_hashmap_t *map, int key, int value) {
-  // TODO
-  return INT_MAX;
+  map->numOps++;
+  int index = key % (map->capacity);
+
+  if (map->table[index] == NULL) {
+    // no entries in this linked list
+    map->table[index] = (ts_entry_t*) malloc(sizeof(ts_entry_t));
+    map->table[index]->key = key;
+    map->table[index]->value = value;
+    map->table[index]->next = NULL;
+    map->size++;
+    return INT_MAX;
+  } else {
+    // there are already entries. Are any of their keys the input key?
+    // get first entry
+    ts_entry_t *entry = map->table[index];
+
+    // check if the first node is our key
+    if (entry->key == key) {
+      // this is an entry with the given input key! update it!
+      int oldVal = entry->value;
+      entry->value = value;
+      return oldVal;
+    }
+
+    // loop through all nodes in this chain looking for the key (or the last node)
+    while ((entry->next) != NULL) {
+      if (entry->key == key) {
+        // there was an entry with the given input key! update it!
+        int oldVal = entry->value;
+        entry->value = value;
+        return oldVal;
+      }
+      entry = entry->next;
+    }
+
+    // if we break out of the while loop, make a new node
+    ts_entry_t *newEntry = (ts_entry_t*) malloc(sizeof(ts_entry_t));
+    newEntry->key = key;
+    newEntry->value = value;
+
+    // set newEntry pointer to entry's next field
+    entry->next = newEntry;
+
+    // if we reach this point, we've made a new node, so return INT_MAX (and increment size)
+    map->size++;
+    return INT_MAX;
+  }
 }
 
 /**
@@ -46,7 +121,41 @@ int put(ts_hashmap_t *map, int key, int value) {
  * @return the value associated with the given key, or INT_MAX if key not found
  */
 int del(ts_hashmap_t *map, int key) {
-  // TODO
+  map->numOps++;
+  int index = key % (map->capacity);
+
+  // check if table has an entry
+  if (map->table[index] == NULL) {
+    // if not, do nothing and just return INT_MAX
+    return INT_MAX;
+  } else {
+    // otherwise, we must look for our key
+    ts_entry_t *entry = map->table[index];
+
+    // check if the first node is our key
+    if (entry->key == key) {
+      // this is an entry with the given input key! MURDER it (violently and full of HATRED)!
+      map->table[index] = entry->next;
+      int oldVal = entry->value;
+      free(entry);
+      map->size--;
+      return oldVal;
+    }
+
+    while ((entry->next) != NULL) {
+      if (entry->next->key == key) {
+        // next entry has the given input key! update it!
+        ts_entry_t *next = entry->next;
+        entry->next = next->next;
+        int oldVal = next->value;
+        free(next);
+        map->size--;
+        return oldVal;
+      }
+      entry = entry->next;
+    }
+    
+  }
   return INT_MAX;
 }
 
